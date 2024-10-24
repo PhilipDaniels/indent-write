@@ -1,7 +1,5 @@
 use std::io;
 
-use super::Inspect;
-
 #[derive(Debug, Copy, Clone)]
 enum IndentState<'a> {
     // We are currently writing a line. Forward writes until the end of the
@@ -183,7 +181,7 @@ impl<'i, W: io::Write> io::Write for IndentWriter<'i, W> {
     fn flush(&mut self) -> io::Result<()> {
         // If we're currently in the middle of writing an indent, flush it
         while let WritingIndent(ref mut indent) = self.state {
-            match self.writer.write(*indent)? {
+            match self.writer.write(indent)? {
                 // We wrote the entire indent. Proceed with the flush
                 len if len >= indent.len() => self.state = MidLine,
 

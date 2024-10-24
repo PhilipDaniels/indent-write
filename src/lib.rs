@@ -13,29 +13,3 @@ pub mod indentable;
 
 #[cfg(feature = "std")]
 pub mod io;
-
-trait Inspect<T> {
-    fn inspect(self, func: impl FnOnce(&T)) -> Self;
-}
-
-impl<T> Inspect<T> for Option<T> {
-    #[inline]
-    fn inspect(self, func: impl FnOnce(&T)) -> Self {
-        if let Some(ref value) = self {
-            func(value)
-        }
-
-        self
-    }
-}
-
-impl<T, E> Inspect<T> for Result<T, E> {
-    #[inline]
-    fn inspect(self, func: impl FnOnce(&T)) -> Self {
-        if let Ok(ref value) = self {
-            func(value)
-        }
-
-        self
-    }
-}
