@@ -1,3 +1,4 @@
+use core::ops::Range;
 use std::io;
 
 #[derive(Debug, Clone)]
@@ -10,8 +11,9 @@ enum IndentState {
     // before the next non empty line.
     NeedIndent,
 
-    // We are currently writing an indent.
-    WritingIndent(Vec<u8>),
+    // We are currently writing an indent. This range represents the part of
+    // `required_indent` that still needs to be written.
+    WritingIndent(Range<usize>),
 }
 
 use IndentState::*;
@@ -151,7 +153,8 @@ impl<'i, W: io::Write> io::Write for IndentWriter<'i, W> {
                     // We are at the beginning of a non-empty line presently.
                     // Begin inserting an indent now, then continue looping
                     // (since we haven't yet attempted to write user data)
-                    Some(0) => self.state = WritingIndent(self.required_indent.clone()),
+                    //Some(0) => self.state = WritingIndent(self.required_indent.clone()),
+                    Some(0) => self.state = WritingIndent(0..self.required_indent.len()),
 
                     // There's an upcoming non-empty line. Write out the
                     // remainder of the empty lines. If all the empty lines
@@ -160,7 +163,7 @@ impl<'i, W: io::Write> io::Write for IndentWriter<'i, W> {
                     Some(len) => {
                         break self.writer.write(&buf[..len]).inspect(|&n| {
                             if n >= len {
-                                self.state = WritingIndent(self.required_indent.clone())
+                                self.state = WritingIndent(0..self.required_indent.len());
                             }
                         })
                     }
@@ -169,40 +172,38 @@ impl<'i, W: io::Write> io::Write for IndentWriter<'i, W> {
                 // We are writing an indent unconditionally. If we're in this
                 // state, the input buffer is known to be the start of a non-
                 // empty line.
-                IndentState::WritingIndent(ref mut indent) => match self.writer.write(&indent)? {
-                    // We successfully wrote the entire indent. Continue with
-                    // writing the input buffer.
-                    n if n >= indent.len() => self.state = MidLine,
+                IndentState::WritingIndent(ref mut range) => {
+                    match self.writer.write(&self.required_indent[range.clone()])? {
+                        // We successfully wrote the entire indent. Continue with
+                        // writing the input buffer.
+                        n if n >= range.len() => self.state = MidLine,
 
-                    // Eof; stop work immediately
-                    0 => break Ok(0),
+                        // Eof; stop work immediately
+                        0 => break Ok(0),
 
-                    // Only a part of the indent was written. Continue
-                    // trying to write the rest of it, but update our state
-                    // to keep it consistent in case the next write is an
-                    // error
-                    n => {
-                        indent.drain(0..n);
+                        // Only a part of the indent was written. Continue
+                        // trying to write the rest of it, but update our state
+                        // to keep it consistent in case the next write is an
+                        // error
+                        n => range.start += n,
                     }
-                },
+                }
             }
         }
     }
 
     fn flush(&mut self) -> io::Result<()> {
         // If we're currently in the middle of writing an indent, flush it
-        while let WritingIndent(ref mut indent) = self.state {
-            match self.writer.write(indent)? {
+        while let WritingIndent(ref mut range) = self.state {
+            match self.writer.write(&self.required_indent[range.clone()])? {
                 // We wrote the entire indent. Proceed with the flush
-                len if len >= indent.len() => self.state = MidLine,
+                len if len >= range.len() => self.state = MidLine,
 
                 // EoF; return an error
                 0 => return Err(io::ErrorKind::WriteZero.into()),
 
                 // Partial write, continue writing.
-                len => {
-                    indent.drain(0..len);
-                }
+                len => range.start += len,
             }
         }
 
