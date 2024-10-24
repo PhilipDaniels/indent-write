@@ -61,15 +61,15 @@ fn test_inc_and_dec() {
     let mut writer = IndentWriter::new("    ", &mut dest);
 
     writeln!(writer, "<trk>").unwrap();
-    writer.inc();
 
+    writer.inc();
     writeln!(writer, "<name>Lincs Riding</name>").unwrap();
     writeln!(writer, "<trkseg>").unwrap();
-    writer.inc();
 
+    writer.inc();
     writeln!(writer, "<trkpt lat=\"53.246708\" lon=\"-0.801052\">").unwrap();
-    writer.inc();
 
+    writer.inc();
     writeln!(writer, "<ele>16.4</ele>").unwrap();
     writeln!(writer, "<time>2024-01-02T10:52:25Z</time>").unwrap();
 
@@ -78,7 +78,6 @@ fn test_inc_and_dec() {
 
     writer.dec();
     writeln!(writer, "</trkseg>").unwrap();
-
     writeln!(writer, "<extensions>\n    <hr>130</hr>\n</extensions>").unwrap();
 
     writer.dec();
@@ -101,6 +100,20 @@ fn test_inc_and_dec() {
 </trk>
 "
     );
+}
+
+#[test]
+fn test_reset() {
+    let mut dest = Vec::new();
+    let mut writer = IndentWriter::new("    ", &mut dest);
+    writer.inc();
+
+    writeln!(writer, "FIRST").unwrap();
+    writer.reset();
+    writeln!(writer, "SECOND").unwrap();
+
+    let result = from_utf8(&dest).expect("Wrote invalid utf8 to dest");
+    assert_eq!(result, "    FIRST\nSECOND\n");
 }
 
 #[test]
