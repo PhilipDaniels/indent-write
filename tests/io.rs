@@ -49,6 +49,7 @@ fn basic_test() {
 
     {
         let mut writer = IndentWriter::new("\t", &mut dest);
+        writer.inc();
         for line in CONTENT {
             writeln!(writer, "{}", line).unwrap();
         }
@@ -69,12 +70,15 @@ fn test_multi_indent() {
     writeln!(dest, "{}", "😀 😀 😀").unwrap();
     {
         let mut indent1 = IndentWriter::new("\t", &mut dest);
+        indent1.inc();
         writeln!(indent1, "{}", "😀 😀 😀").unwrap();
         {
             let mut indent2 = IndentWriter::new("\t", &mut indent1);
+            indent2.inc();
             writeln!(indent2, "{}", "😀 😀 😀").unwrap();
             {
                 let mut indent3 = IndentWriter::new("\t", &mut indent2);
+                indent3.inc();
                 writeln!(indent3, "{}", "😀 😀 😀").unwrap();
                 writeln!(indent3, "").unwrap();
             }
@@ -113,6 +117,7 @@ fn test_partial_simple_indent_writes() {
     {
         let writer = OneByteAtATime(&mut dest);
         let mut writer = IndentWriter::new("\t", writer);
+        writer.inc();
         write!(writer, "{}\n", "Hello, World").unwrap();
         write!(writer, "{}\n", "😀 😀 😀\n😀 😀 😀").unwrap();
     }
@@ -126,7 +131,8 @@ fn test_partial_simple_indent_writes() {
 fn test_partial_simple_indent_writes_inverted() {
     let mut dest = Vec::new();
     {
-        let writer = IndentWriter::new("\t", &mut dest);
+        let mut writer = IndentWriter::new("\t", &mut dest);
+        writer.inc();
         let mut writer = OneByteAtATime(writer);
         write!(writer, "{}\n", "Hello, World").unwrap();
         write!(writer, "{}\n", "😀 😀 😀\n😀 😀 😀").unwrap();
@@ -142,7 +148,8 @@ fn test_partial_writes_combined() {
     let mut dest = Vec::new();
     {
         let writer = OneByteAtATime(&mut dest);
-        let writer = IndentWriter::new("    ", writer);
+        let mut writer = IndentWriter::new("    ", writer);
+        writer.inc();
         let mut writer = OneByteAtATime(writer);
 
         write!(writer, "{}\n", "Hello, World").unwrap();
