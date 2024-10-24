@@ -46,44 +46,46 @@ use IndentState::*;
 pub struct IndentWriter<'i, W> {
     writer: W,
     indent: &'i str,
+    indent_level: u16,
+    // The `required_indent` is the `indent` repeated `indent_level` times.
+    // We recalculate it when `indent_level` changes. It gets cloned into
+    // `state` whenever we need to write an indent.
+    required_indent: Vec<u8>,
     state: IndentState,
 }
 
 impl<'i, W: io::Write> IndentWriter<'i, W> {
-    /// Create a new [`IndentWriter`].
+    /// Create a new [`IndentWriter`] with a [`Self::indent_level()`] of 0.
     pub fn new(indent: &'i str, writer: W) -> Self {
         Self {
             writer,
             indent,
+            indent_level: 0,
+            required_indent: Vec::new(),
             state: NeedIndent,
         }
     }
 
-    /// Create a new [`IndentWriter`] which will not add an indent to the first
-    /// written line.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// # use std::io::Write;
-    /// use indent_write::io::IndentWriter;
-    ///
-    /// let mut buffer = Vec::new();
-    /// let mut writer = IndentWriter::new_skip_initial("    ", &mut buffer);
-    ///
-    /// writeln!(writer, "Line 1").unwrap();
-    /// writeln!(writer, "Line 2").unwrap();
-    /// writeln!(writer, "Line 3").unwrap();
-    ///
-    /// assert_eq!(buffer, b"Line 1\n    Line 2\n    Line 3\n")
-    /// ```
-    #[inline]
-    pub fn new_skip_initial(indent: &'i str, writer: W) -> Self {
-        Self {
-            writer,
-            indent,
-            state: MidLine,
-        }
+    /// Increments the [`Self::indent_level()`] by 1.
+    pub fn inc(&mut self) {
+        self.indent_level = self.indent_level.saturating_add(1);
+        self.required_indent
+            .extend_from_slice(self.indent.as_bytes());
+    }
+
+    /// Decrements the [`Self::indent_level()`] by 1.
+    pub fn dec(&mut self) {
+        self.indent_level = self.indent_level.saturating_sub(1);
+        // Note that len() is in bytes, not chars or graphemes so this is
+        // correct.
+        let new_len = self.required_indent.len() - self.indent.len();
+        self.required_indent.truncate(new_len);
+    }
+
+    /// Resets the [`Self::indent_level()`] to 0.
+    pub fn reset(&mut self) {
+        self.indent_level = 0;
+        self.required_indent.clear();
     }
 
     /// Extract the writer from the [`IndentWriter`], discarding any in-progress
@@ -142,7 +144,7 @@ impl<'i, W: io::Write> io::Write for IndentWriter<'i, W> {
                     // We are at the beginning of a non-empty line presently.
                     // Begin inserting an indent now, then continue looping
                     // (since we haven't yet attempted to write user data)
-                    Some(0) => self.state = WritingIndent(self.indent.as_bytes().to_vec()),
+                    Some(0) => self.state = WritingIndent(self.required_indent.clone()),
 
                     // There's an upcoming non-empty line. Write out the
                     // remainder of the empty lines. If all the empty lines
@@ -151,7 +153,7 @@ impl<'i, W: io::Write> io::Write for IndentWriter<'i, W> {
                     Some(len) => {
                         break self.writer.write(&buf[..len]).inspect(|&n| {
                             if n >= len {
-                                self.state = WritingIndent(self.indent.as_bytes().to_vec())
+                                self.state = WritingIndent(self.required_indent.clone())
                             }
                         })
                     }
