@@ -22,7 +22,12 @@ use IndentState::*;
 /// each non-empty line. Specifically, this means it will insert an indent
 /// between each newline when followed by a non-newline.
 ///
-/// These writers can be nested to provide increasing levels of indentation.
+/// An `IndentWriter` has an [`Self::indent_level`] which starts at 0, meaning
+/// no indentation will be written. Call [`Self::inc()`] and [`Self::dec()`] to
+/// increase and decrease the amount of indentation.
+///
+/// If you want to use differing indentation strings, say a mixture of tabs and
+/// spaces, then you can nest writers.
 ///
 /// # Example
 ///
@@ -33,6 +38,7 @@ use IndentState::*;
 /// let output = Vec::new();
 ///
 /// let mut indented = IndentWriter::new("\t", output);
+/// indented.inc();
 ///
 /// // Lines will be indented
 /// write!(indented, "Line 1\nLine 2\n");
@@ -55,7 +61,8 @@ pub struct IndentWriter<'i, W> {
 }
 
 impl<'i, W: io::Write> IndentWriter<'i, W> {
-    /// Create a new [`IndentWriter`] with a [`Self::indent_level()`] of 0.
+    /// Create a new [`IndentWriter`] with a [`Self::indent_level()`] of 0
+    /// and `indent` to be used to create the indentation.
     pub fn new(indent: &'i str, writer: W) -> Self {
         Self {
             writer,
