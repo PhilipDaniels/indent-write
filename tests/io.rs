@@ -56,6 +56,54 @@ fn test_prefix() {
 }
 
 #[test]
+fn test_inc_and_dec() {
+    let mut dest = Vec::new();
+    let mut writer = IndentWriter::new("    ", &mut dest);
+
+    writeln!(writer, "<trk>").unwrap();
+    writer.inc();
+
+    writeln!(writer, "<name>Lincs Riding</name>").unwrap();
+    writeln!(writer, "<trkseg>").unwrap();
+    writer.inc();
+
+    writeln!(writer, "<trkpt lat=\"53.246708\" lon=\"-0.801052\">").unwrap();
+    writer.inc();
+
+    writeln!(writer, "<ele>16.4</ele>").unwrap();
+    writeln!(writer, "<time>2024-01-02T10:52:25Z</time>").unwrap();
+
+    writer.dec();
+    writeln!(writer, "</trkpt>").unwrap();
+
+    writer.dec();
+    writeln!(writer, "</trkseg>").unwrap();
+
+    writeln!(writer, "<extensions>\n    <hr>130</hr>\n</extensions>").unwrap();
+
+    writer.dec();
+    writeln!(writer, "</trk>").unwrap();
+
+    let result = from_utf8(&dest).expect("Wrote invalid utf8 to dest");
+    assert_eq!(
+        result,
+        "<trk>
+    <name>Lincs Riding</name>
+    <trkseg>
+        <trkpt lat=\"53.246708\" lon=\"-0.801052\">
+            <ele>16.4</ele>
+            <time>2024-01-02T10:52:25Z</time>
+        </trkpt>
+    </trkseg>
+    <extensions>
+        <hr>130</hr>
+    </extensions>
+</trk>
+"
+    );
+}
+
+#[test]
 fn test_multi_indent() {
     let mut dest = Vec::new();
     writeln!(dest, "{}", "😀 😀 😀").unwrap();
