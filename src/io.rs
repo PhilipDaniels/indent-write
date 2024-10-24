@@ -1,7 +1,7 @@
 use std::io;
 
-#[derive(Debug, Copy, Clone)]
-enum IndentState<'a> {
+#[derive(Debug, Clone)]
+enum IndentState {
     // We are currently writing a line. Forward writes until the end of the
     // line.
     MidLine,
@@ -11,7 +11,7 @@ enum IndentState<'a> {
     NeedIndent,
 
     // We are currently writing an indent.
-    WritingIndent(&'a [u8]),
+    WritingIndent(Vec<u8>),
 }
 
 use IndentState::*;
@@ -46,7 +46,7 @@ use IndentState::*;
 pub struct IndentWriter<'i, W> {
     writer: W,
     indent: &'i str,
-    state: IndentState<'i>,
+    state: IndentState,
 }
 
 impl<'i, W: io::Write> IndentWriter<'i, W> {
@@ -142,7 +142,7 @@ impl<'i, W: io::Write> io::Write for IndentWriter<'i, W> {
                     // We are at the beginning of a non-empty line presently.
                     // Begin inserting an indent now, then continue looping
                     // (since we haven't yet attempted to write user data)
-                    Some(0) => self.state = WritingIndent(self.indent.as_bytes()),
+                    Some(0) => self.state = WritingIndent(self.indent.as_bytes().to_vec()),
 
                     // There's an upcoming non-empty line. Write out the
                     // remainder of the empty lines. If all the empty lines
@@ -151,7 +151,7 @@ impl<'i, W: io::Write> io::Write for IndentWriter<'i, W> {
                     Some(len) => {
                         break self.writer.write(&buf[..len]).inspect(|&n| {
                             if n >= len {
-                                self.state = IndentState::WritingIndent(self.indent.as_bytes())
+                                self.state = WritingIndent(self.indent.as_bytes().to_vec())
                             }
                         })
                     }
@@ -160,7 +160,7 @@ impl<'i, W: io::Write> io::Write for IndentWriter<'i, W> {
                 // We are writing an indent unconditionally. If we're in this
                 // state, the input buffer is known to be the start of a non-
                 // empty line.
-                IndentState::WritingIndent(indent) => match self.writer.write(indent)? {
+                IndentState::WritingIndent(ref mut indent) => match self.writer.write(&indent)? {
                     // We successfully wrote the entire indent. Continue with
                     // writing the input buffer.
                     n if n >= indent.len() => self.state = MidLine,
@@ -172,7 +172,9 @@ impl<'i, W: io::Write> io::Write for IndentWriter<'i, W> {
                     // trying to write the rest of it, but update our state
                     // to keep it consistent in case the next write is an
                     // error
-                    n => self.state = WritingIndent(&indent[n..]),
+                    n => {
+                        indent.drain(0..n);
+                    }
                 },
             }
         }
@@ -189,7 +191,9 @@ impl<'i, W: io::Write> io::Write for IndentWriter<'i, W> {
                 0 => return Err(io::ErrorKind::WriteZero.into()),
 
                 // Partial write, continue writing.
-                len => *indent = &indent[len..],
+                len => {
+                    indent.drain(0..len);
+                }
             }
         }
 
