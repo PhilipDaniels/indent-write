@@ -25,24 +25,6 @@ impl<W: Write> Write for OneByteAtATime<W> {
 
 const CONTENT: &'static [&'static str] = &["\t😀 😀 😀", "\t\t😀 😀 😀", "\t😀 😀 😀"];
 
-// Using a function to wrap a writer, run a standard test and check against expected
-macro_rules! test_harness {
-    ($target:ident => $transform:expr, expect: $result:expr) => {{
-        let mut dest = Vec::new();
-
-        {
-            let $target = &mut dest;
-            let mut indented_dest = $transform;
-            for line in CONTENT {
-                write!(&mut indented_dest, "{}\n", line).unwrap();
-            }
-        }
-
-        let result = from_utf8(&dest).expect("Wrote invalid utf8 to dest");
-        assert_eq!(result, $result);
-    }};
-}
-
 #[test]
 fn basic_test() {
     let mut dest = Vec::new();
@@ -61,7 +43,16 @@ fn basic_test() {
 
 #[test]
 fn test_prefix() {
-    test_harness!(w => IndentWriter::new("    ", w), expect: "    \t😀 😀 😀\n    \t\t😀 😀 😀\n    \t😀 😀 😀\n")
+    let mut dest = Vec::new();
+    let mut writer = IndentWriter::new("    ", &mut dest);
+    writer.inc();
+
+    for line in CONTENT {
+        write!(writer, "{}\n", line).unwrap();
+    }
+
+    let result = from_utf8(&dest).expect("Wrote invalid utf8 to dest");
+    assert_eq!(result, "    \t😀 😀 😀\n    \t\t😀 😀 😀\n    \t😀 😀 😀\n");
 }
 
 #[test]
