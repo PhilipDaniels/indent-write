@@ -57,13 +57,16 @@ pub struct IndentWriter<'i, W> {
 impl<'i, W: io::Write> IndentWriter<'i, W> {
     /// Create a new [`IndentWriter`] with a [`Self::indent_level()`] of 0.
     pub fn new(indent: &'i str, writer: W) -> Self {
-        Self {
+        let mut s = Self {
             writer,
             indent,
             indent_level: 0,
             required_indent: Vec::new(),
             state: NeedIndent,
-        }
+        };
+
+        s.inc();
+        s
     }
 
     /// Increments the [`Self::indent_level()`] by 1.
