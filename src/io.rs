@@ -153,7 +153,6 @@ impl<W: io::Write> io::Write for IndentWriter<W> {
                     // We are at the beginning of a non-empty line presently.
                     // Begin inserting an indent now, then continue looping
                     // (since we haven't yet attempted to write user data)
-                    //Some(0) => self.state = WritingIndent(self.required_indent.clone()),
                     Some(0) => self.state = WritingIndent(0..self.required_indent.len()),
 
                     // There's an upcoming non-empty line. Write out the
