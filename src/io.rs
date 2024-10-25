@@ -51,9 +51,9 @@ use IndentState::*;
 /// assert_eq!(indented.get_ref(), b"\tLine 1\n\tLine 2\n\n\n\tLine 3\n\n");
 /// ```
 #[derive(Debug, Clone)]
-pub struct IndentWriter<'i, W> {
+pub struct IndentWriter<W> {
     writer: W,
-    indent: &'i str,
+    indent: String,
     indent_level: u16,
     // The `required_indent` is the `indent` repeated `indent_level` times.
     // We recalculate it when `indent_level` changes. It gets cloned into
@@ -62,13 +62,13 @@ pub struct IndentWriter<'i, W> {
     state: IndentState,
 }
 
-impl<'i, W: io::Write> IndentWriter<'i, W> {
+impl<W: io::Write> IndentWriter<W> {
     /// Create a new [`IndentWriter`] with a [`Self::indent_level()`] of 0
     /// and `indent` to be used to create the indentation.
-    pub fn new(indent: &'i str, writer: W) -> Self {
+    pub fn new<S: Into<String>>(indent: S, writer: W) -> Self {
         Self {
             writer,
-            indent,
+            indent: indent.into(),
             indent_level: 0,
             required_indent: Vec::new(),
             state: NeedIndent,
@@ -112,12 +112,12 @@ impl<'i, W: io::Write> IndentWriter<'i, W> {
 
     /// Get the string being used as an indent for each line
     #[inline]
-    pub fn indent(&self) -> &'i str {
-        self.indent
+    pub fn indent(&self) -> &str {
+        &self.indent
     }
 }
 
-impl<'i, W: io::Write> io::Write for IndentWriter<'i, W> {
+impl<W: io::Write> io::Write for IndentWriter<W> {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         loop {
             match self.state {
