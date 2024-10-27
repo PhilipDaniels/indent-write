@@ -40,7 +40,7 @@ use IndentState::*;
 /// let output = Vec::new();
 ///
 /// let mut indented = IndentWriter::new("\t", output);
-/// indented.inc();
+/// indented.indent();
 ///
 /// // Lines will be indented
 /// write!(indented, "Line 1\nLine 2\n");
@@ -53,7 +53,7 @@ use IndentState::*;
 #[derive(Debug, Clone)]
 pub struct IndentWriter<W> {
     writer: W,
-    indent: String,
+    base_indent: String,
     indent_level: u16,
     // The `required_indent` is the `indent` repeated `indent_level` times.
     // We recalculate it when `indent_level` changes.
@@ -63,11 +63,11 @@ pub struct IndentWriter<W> {
 
 impl<W: io::Write> IndentWriter<W> {
     /// Create a new [`IndentWriter`] with a [`Self::indent_level()`] of 0
-    /// and `indent` to be used to create the indentation.
-    pub fn new<S: Into<String>>(indent: S, writer: W) -> Self {
+    /// and `base_indent` to be used to create the indentation.
+    pub fn new<S: Into<String>>(base_indent: S, writer: W) -> Self {
         Self {
             writer,
-            indent: indent.into(),
+            base_indent: base_indent.into(),
             indent_level: 0,
             required_indent: Vec::new(),
             state: NeedIndent,
@@ -75,18 +75,18 @@ impl<W: io::Write> IndentWriter<W> {
     }
 
     /// Increments the [`Self::indent_level()`] by 1.
-    pub fn inc(&mut self) {
+    pub fn indent(&mut self) {
         self.indent_level = self.indent_level.saturating_add(1);
         self.required_indent
-            .extend_from_slice(self.indent.as_bytes());
+            .extend_from_slice(self.base_indent.as_bytes());
     }
 
     /// Decrements the [`Self::indent_level()`] by 1.
-    pub fn dec(&mut self) {
+    pub fn outdent(&mut self) {
         self.indent_level = self.indent_level.saturating_sub(1);
         // Note that len() is in bytes, not chars or graphemes so this is
         // correct.
-        let new_len = self.required_indent.len() - self.indent.len();
+        let new_len = self.required_indent.len() - self.base_indent.len();
         self.required_indent.truncate(new_len);
     }
 
@@ -94,6 +94,11 @@ impl<W: io::Write> IndentWriter<W> {
     pub fn reset(&mut self) {
         self.indent_level = 0;
         self.required_indent.clear();
+    }
+
+    /// Returns the current indent level.
+    pub fn indent_level(&self) -> u16 {
+        self.indent_level
     }
 
     /// Extract the writer from the [`IndentWriter`], discarding any in-progress
@@ -109,10 +114,10 @@ impl<W: io::Write> IndentWriter<W> {
         &self.writer
     }
 
-    /// Get the string being used as an indent for each line
+    /// Get the string being used as the basis of the indent for each line
     #[inline]
-    pub fn indent(&self) -> &str {
-        &self.indent
+    pub fn base_indent(&self) -> &str {
+        &self.base_indent
     }
 }
 

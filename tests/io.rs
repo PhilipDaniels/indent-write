@@ -31,7 +31,7 @@ fn basic_test() {
 
     {
         let mut writer = IndentWriter::new("\t", &mut dest);
-        writer.inc();
+        writer.indent();
         for line in CONTENT {
             writeln!(writer, "{}", line).unwrap();
         }
@@ -45,7 +45,7 @@ fn basic_test() {
 fn test_prefix() {
     let mut dest = Vec::new();
     let mut writer = IndentWriter::new("    ", &mut dest);
-    writer.inc();
+    writer.indent();
 
     for line in CONTENT {
         write!(writer, "{}\n", line).unwrap();
@@ -62,25 +62,25 @@ fn test_inc_and_dec() {
 
     writeln!(writer, "<trk>").unwrap();
 
-    writer.inc();
+    writer.indent();
     writeln!(writer, "<name>Lincs Riding</name>").unwrap();
     writeln!(writer, "<trkseg>").unwrap();
 
-    writer.inc();
+    writer.indent();
     writeln!(writer, "<trkpt lat=\"53.246708\" lon=\"-0.801052\">").unwrap();
 
-    writer.inc();
+    writer.indent();
     writeln!(writer, "<ele>16.4</ele>").unwrap();
     writeln!(writer, "<time>2024-01-02T10:52:25Z</time>").unwrap();
 
-    writer.dec();
+    writer.outdent();
     writeln!(writer, "</trkpt>").unwrap();
 
-    writer.dec();
+    writer.outdent();
     writeln!(writer, "</trkseg>").unwrap();
     writeln!(writer, "<extensions>\n    <hr>130</hr>\n</extensions>").unwrap();
 
-    writer.dec();
+    writer.outdent();
     writeln!(writer, "</trk>").unwrap();
 
     let result = from_utf8(&dest).expect("Wrote invalid utf8 to dest");
@@ -106,7 +106,7 @@ fn test_inc_and_dec() {
 fn test_reset() {
     let mut dest = Vec::new();
     let mut writer = IndentWriter::new("    ", &mut dest);
-    writer.inc();
+    writer.indent();
 
     writeln!(writer, "FIRST").unwrap();
     writer.reset();
@@ -122,15 +122,15 @@ fn test_multi_indent() {
     writeln!(dest, "{}", "😀 😀 😀").unwrap();
     {
         let mut indent1 = IndentWriter::new("\t", &mut dest);
-        indent1.inc();
+        indent1.indent();
         writeln!(indent1, "{}", "😀 😀 😀").unwrap();
         {
             let mut indent2 = IndentWriter::new("\t", &mut indent1);
-            indent2.inc();
+            indent2.indent();
             writeln!(indent2, "{}", "😀 😀 😀").unwrap();
             {
                 let mut indent3 = IndentWriter::new("\t", &mut indent2);
-                indent3.inc();
+                indent3.indent();
                 writeln!(indent3, "{}", "😀 😀 😀").unwrap();
                 writeln!(indent3, "").unwrap();
             }
@@ -169,7 +169,7 @@ fn test_partial_simple_indent_writes() {
     {
         let writer = OneByteAtATime(&mut dest);
         let mut writer = IndentWriter::new("\t", writer);
-        writer.inc();
+        writer.indent();
         write!(writer, "{}\n", "Hello, World").unwrap();
         write!(writer, "{}\n", "😀 😀 😀\n😀 😀 😀").unwrap();
     }
@@ -184,7 +184,7 @@ fn test_partial_simple_indent_writes_inverted() {
     let mut dest = Vec::new();
     {
         let mut writer = IndentWriter::new("\t", &mut dest);
-        writer.inc();
+        writer.indent();
         let mut writer = OneByteAtATime(writer);
         write!(writer, "{}\n", "Hello, World").unwrap();
         write!(writer, "{}\n", "😀 😀 😀\n😀 😀 😀").unwrap();
@@ -201,7 +201,7 @@ fn test_partial_writes_combined() {
     {
         let writer = OneByteAtATime(&mut dest);
         let mut writer = IndentWriter::new("    ", writer);
-        writer.inc();
+        writer.indent();
         let mut writer = OneByteAtATime(writer);
 
         write!(writer, "{}\n", "Hello, World").unwrap();
@@ -222,13 +222,13 @@ fn test_writes_with_multibyte_unicode() {
     let mut writer = IndentWriter::new("🌊ḈΣ ", writer);
 
     writeln!(writer, "<point>").unwrap();
-    writer.inc();
+    writer.indent();
     writeln!(writer, "<lat>12.3</lat>").unwrap();
-    writer.inc();
+    writer.indent();
     writeln!(writer, "<desc>Description</desc>").unwrap();
-    writer.dec();
+    writer.outdent();
     writeln!(writer, "<lon>182.3</lon>").unwrap();
-    writer.dec();
+    writer.outdent();
     writeln!(writer, "</point>").unwrap();
 
     let result = String::from_utf8(dest).expect("Wrote invalid utf8 to dest");
