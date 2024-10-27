@@ -56,8 +56,7 @@ pub struct IndentWriter<W> {
     indent: String,
     indent_level: u16,
     // The `required_indent` is the `indent` repeated `indent_level` times.
-    // We recalculate it when `indent_level` changes. It gets cloned into
-    // `state` whenever we need to write an indent.
+    // We recalculate it when `indent_level` changes.
     required_indent: Vec<u8>,
     state: IndentState,
 }
