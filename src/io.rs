@@ -57,7 +57,7 @@ pub struct IndentWriter<W> {
     indent_level: u16,
     // The `required_indent` is the `indent` repeated `indent_level` times.
     // We recalculate it when `indent_level` changes.
-    required_indent: Vec<u8>,
+    current_indent: String,
     state: IndentState,
 }
 
@@ -69,16 +69,20 @@ impl<W: io::Write> IndentWriter<W> {
             writer,
             base_indent: base_indent.into(),
             indent_level: 0,
-            required_indent: Vec::new(),
+            current_indent: String::new(),
             state: NeedIndent,
         }
+    }
+
+    /// Returns the current indent level.
+    pub fn indent_level(&self) -> u16 {
+        self.indent_level
     }
 
     /// Increments the [`Self::indent_level()`] by 1.
     pub fn indent(&mut self) {
         self.indent_level = self.indent_level.saturating_add(1);
-        self.required_indent
-            .extend_from_slice(self.base_indent.as_bytes());
+        self.current_indent.push_str(&self.base_indent);
     }
 
     /// Decrements the [`Self::indent_level()`] by 1.
@@ -86,19 +90,14 @@ impl<W: io::Write> IndentWriter<W> {
         self.indent_level = self.indent_level.saturating_sub(1);
         // Note that len() is in bytes, not chars or graphemes so this is
         // correct.
-        let new_len = self.required_indent.len() - self.base_indent.len();
-        self.required_indent.truncate(new_len);
+        let new_len = self.current_indent.len() - self.base_indent.len();
+        self.current_indent.truncate(new_len);
     }
 
     /// Resets the [`Self::indent_level()`] to 0.
     pub fn reset(&mut self) {
         self.indent_level = 0;
-        self.required_indent.clear();
-    }
-
-    /// Returns the current indent level.
-    pub fn indent_level(&self) -> u16 {
-        self.indent_level
+        self.current_indent.clear();
     }
 
     /// Extract the writer from the [`IndentWriter`], discarding any in-progress
@@ -114,10 +113,16 @@ impl<W: io::Write> IndentWriter<W> {
         &self.writer
     }
 
-    /// Get the string being used as the basis of the indent for each line
+    /// Get the string being used as the basis of the indent for each line.
     #[inline]
     pub fn base_indent(&self) -> &str {
         &self.base_indent
+    }
+
+    /// Returns the current effective amount of indentation. This is
+    /// [`Self::base_indent()`] repeated [`Self::indent_level()`] times.
+    pub fn current_indent(&self) -> &str {
+        &self.current_indent
     }
 }
 
@@ -157,7 +162,7 @@ impl<W: io::Write> io::Write for IndentWriter<W> {
                     // We are at the beginning of a non-empty line presently.
                     // Begin inserting an indent now, then continue looping
                     // (since we haven't yet attempted to write user data)
-                    Some(0) => self.state = WritingIndent(0..self.required_indent.len()),
+                    Some(0) => self.state = WritingIndent(0..self.current_indent.len()),
 
                     // There's an upcoming non-empty line. Write out the
                     // remainder of the empty lines. If all the empty lines
@@ -166,7 +171,7 @@ impl<W: io::Write> io::Write for IndentWriter<W> {
                     Some(len) => {
                         break self.writer.write(&buf[..len]).inspect(|&n| {
                             if n >= len {
-                                self.state = WritingIndent(0..self.required_indent.len());
+                                self.state = WritingIndent(0..self.current_indent.len());
                             }
                         })
                     }
@@ -176,7 +181,10 @@ impl<W: io::Write> io::Write for IndentWriter<W> {
                 // state, the input buffer is known to be the start of a non-
                 // empty line.
                 IndentState::WritingIndent(ref mut range) => {
-                    match self.writer.write(&self.required_indent[range.clone()])? {
+                    match self
+                        .writer
+                        .write(&self.current_indent.as_bytes()[range.clone()])?
+                    {
                         // We successfully wrote the entire indent. Continue with
                         // writing the input buffer.
                         n if n >= range.len() => self.state = MidLine,
@@ -198,7 +206,10 @@ impl<W: io::Write> io::Write for IndentWriter<W> {
     fn flush(&mut self) -> io::Result<()> {
         // If we're currently in the middle of writing an indent, flush it
         while let WritingIndent(ref mut range) = self.state {
-            match self.writer.write(&self.required_indent[range.clone()])? {
+            match self
+                .writer
+                .write(&self.current_indent.as_bytes()[range.clone()])?
+            {
                 // We wrote the entire indent. Proceed with the flush
                 len if len >= range.len() => self.state = MidLine,
 
