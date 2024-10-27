@@ -81,15 +81,25 @@ impl<W: io::Write> IndentWriter<W> {
 
     /// Increments the [`Self::indent_level()`] by 1.
     pub fn indent(&mut self) {
-        self.indent_level = self.indent_level.saturating_add(1);
-        self.current_indent.push_str(&self.base_indent);
+        match self.indent_level.checked_add(1) {
+            Some(n) => {
+                self.indent_level = n;
+                self.current_indent.push_str(&self.base_indent);
+            }
+            None => { /* Do nothing, already at max indent */ }
+        }
     }
 
     /// Decrements the [`Self::indent_level()`] by 1.
     pub fn outdent(&mut self) {
-        self.indent_level = self.indent_level.saturating_sub(1);
-        // Note that len() is in bytes, not chars or graphemes so this is
-        // correct.
+        if self.indent_level == 0 {
+            // Do nothing, already at min indent.
+            return;
+        }
+
+        self.indent_level -= 1;
+        // Note that String::len() is in bytes, not chars or graphemes so this
+        // is correct.
         let new_len = self.current_indent.len() - self.base_indent.len();
         self.current_indent.truncate(new_len);
     }
