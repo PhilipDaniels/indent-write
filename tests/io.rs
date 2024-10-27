@@ -212,3 +212,33 @@ fn test_partial_writes_combined() {
         Ok("    Hello, World\n    😀 😀 😀\n    😀 😀 😀\n")
     );
 }
+
+#[test]
+fn test_writes_with_multibyte_unicode() {
+    let mut dest = Vec::new();
+    let writer = OneByteAtATime(&mut dest);
+    // 4, 3, 2 and 1 byte characters. This tests that our logic in inc()
+    // and dec() is correct, and the range slicing in write() is corretc.
+    let mut writer = IndentWriter::new("🌊ḈΣ ", writer);
+
+    writeln!(writer, "<point>").unwrap();
+    writer.inc();
+    writeln!(writer, "<lat>12.3</lat>").unwrap();
+    writer.inc();
+    writeln!(writer, "<desc>Description</desc>").unwrap();
+    writer.dec();
+    writeln!(writer, "<lon>182.3</lon>").unwrap();
+    writer.dec();
+    writeln!(writer, "</point>").unwrap();
+
+    let result = String::from_utf8(dest).expect("Wrote invalid utf8 to dest");
+    assert_eq!(
+        result,
+        "<point>
+🌊ḈΣ <lat>12.3</lat>
+🌊ḈΣ 🌊ḈΣ <desc>Description</desc>
+🌊ḈΣ <lon>182.3</lon>
+</point>
+"
+    );
+}
