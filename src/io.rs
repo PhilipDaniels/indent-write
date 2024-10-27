@@ -25,8 +25,8 @@ use IndentState::*;
 /// between each newline when followed by a non-newline.
 ///
 /// An `IndentWriter` has an [`Self::indent_level`] which starts at 0, meaning
-/// no indentation will be written. Call [`Self::inc()`] and [`Self::dec()`] to
-/// increase and decrease the amount of indentation.
+/// no indentation will be written. Call [`Self::indent()`] and
+/// [`Self::outdent()`] to increase and decrease the amount of indentation.
 ///
 /// If you want to use differing indentation strings, say a mixture of tabs and
 /// spaces, then you can nest writers.
